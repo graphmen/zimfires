@@ -77,8 +77,35 @@ async def upsert_fire_observations(db: AsyncSession, df: pd.DataFrame, dataset_n
                         
                     lat = row.get('latitude')
                     lon = row.get('longitude')
-                    sensor = row.get('instrument', row.get('satellite', 'UNKNOWN'))
-                    firms_id = f"{sensor}_{acq_date}_{acq_time}_{lat}_{lon}"
+                    sensor_raw = row.get('instrument', row.get('satellite', 'UNKNOWN'))
+                    satellite = str(row.get('satellite', ''))
+                    
+                    # Map sensor to allowed database check values: 'MODIS_TERRA','MODIS_AQUA','VIIRS_S-NPP','VIIRS_NOAA20','VIIRS_NOAA21','LANDSAT_OLI'
+                    sensor_mapped = 'VIIRS_S-NPP'
+                    if 'MODIS' in dataset_name or 'MODIS' in str(sensor_raw) or satellite in ['Aqua', 'Terra']:
+                        sensor_mapped = 'MODIS_AQUA' if satellite == 'Aqua' else 'MODIS_TERRA'
+                    elif satellite == '1' or 'NOAA20' in dataset_name or satellite == 'NOAA-20':
+                        sensor_mapped = 'VIIRS_NOAA20'
+                    elif satellite == '21' or 'NOAA21' in dataset_name or 'NOAA-21' in dataset_name:
+                        sensor_mapped = 'VIIRS_NOAA21'
+                    elif satellite == 'N' or 'SNPP' in dataset_name:
+                        sensor_mapped = 'VIIRS_S-NPP'
+
+                    # Map dataset to allowed database check values: 'MODIS_C6.1','VIIRS_375m','LANDSAT_30m'
+                    dataset_mapped = 'VIIRS_375m'
+                    if 'MODIS' in dataset_name:
+                        dataset_mapped = 'MODIS_C6.1'
+                    elif 'LANDSAT' in dataset_name:
+                        dataset_mapped = 'LANDSAT_30m'
+
+                    # Map source_type to allowed database check values: 'historical','real-time','ultra-real-time'
+                    source_type_mapped = 'real-time'
+                    if source_type in ['historical', 'real-time', 'ultra-real-time']:
+                        source_type_mapped = source_type
+                    elif source_type in ['nrt', 'realtime']:
+                        source_type_mapped = 'real-time'
+
+                    firms_id = f"FIRMS_{dataset_name}_{acq_date}_{acq_time}_{lat}_{lon}"
                     
                     point = shapely.geometry.Point(lon, lat)
                     geom_wkb = from_shape(point, srid=4326)
@@ -87,9 +114,9 @@ async def upsert_fire_observations(db: AsyncSession, df: pd.DataFrame, dataset_n
                         firms_id=firms_id,
                         observation_time=observation_time,
                         geom=geom_wkb,
-                        sensor=sensor,
-                        dataset=dataset_name,
-                        source_type=source_type,
+                        sensor=sensor_mapped,
+                        dataset=dataset_mapped,
+                        source_type=source_type_mapped,
                         brightness=float(row.get('brightness', row.get('bright_ti4', 0))),
                         confidence=str(row.get('confidence', 'nominal')),
                         frp=float(row.get('frp', 0)) if pd.notna(row.get('frp')) else None,
