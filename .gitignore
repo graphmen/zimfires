@@ -1,12 +1,58 @@
-# OS files
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
-Thumbs.db
+*.pem
 
-# Editor
-.vscode/
-*.suo
-*.user
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Python cache
-__pycache__/
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# python
+backend/venv/
+backend/.venv/
 *.pyc
+**/__pycache__/
+backend/backend_logs.txt
+backend/backend_debug.txt
+
+# local logs and sync temp files
+backend_startup_debug.txt
+backend_startup_error.txt
+.node-xmlhttprequest-sync-*
+
+# scratch
+scratch/
+

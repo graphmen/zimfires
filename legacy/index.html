@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zimbabwe Veld Fire Monitoring — EMA Dashboard</title>
+  <meta name="description"
+    content="NearRealTime Veld Fire Monitoring and Early Response Dashboard for Zimbabwe's Environment Management Agency (EMA) and Civil Protection Unit." />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <div class="app-layout">
+
+    <!-- ══════════════════════════════════════════════════
+       NEW NAVIGATION SIDEBAR (ELITE THEME)
+    ══════════════════════════════════════════════════ -->
+    <aside class="nav-sidebar">
+      <div class="nav-brand">
+        <div class="logo-icon">🔥</div>
+        <div class="brand-text">ZimFireWatch</div>
+      </div>
+
+      <nav class="nav-menu">
+        <div class="nav-group">
+          <div class="nav-group-title">Monitoring</div>
+          <a href="#" class="nav-link active" data-view="dashboard">
+            <span class="icon">📊</span> Dashboard
+          </a>
+          <a href="#" class="nav-link" data-view="map-explorer">
+            <span class="icon">🗺️</span> Map Explorer
+          </a>
+          <a href="#" class="nav-link" id="btn-sync-firms" title="Sync real-time data from NASA">
+            <span class="icon">🔄</span> Sync NASA FIRMS
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Analysis</div>
+          <a href="#" class="nav-link" data-view="statistics">
+            <span class="icon">📈</span> Statistics
+          </a>
+          <a href="#" class="nav-link" data-view="history">
+            <span class="icon">📜</span> History
+          </a>
+          <a href="#" class="nav-link" data-view="burned-area">
+            <span class="icon">🔥</span> Burned Area
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Protected Areas</div>
+          <a href="#" class="nav-link" data-view="national-parks">
+            <span class="icon">🌿</span> National Parks
+          </a>
+          <a href="#" class="nav-link" data-view="alerts">
+            <span class="icon">🔔</span> Alerts
+          </a>
+          <a href="#" class="nav-link" data-view="risk-zones">
+            <span class="icon">⚠️</span> Risk Zones
+          </a>
+        </div>
+      </nav>
+
+      <div class="nav-footer">
+        <div class="nav-link">
+          <span class="icon">⚙️</span> Settings
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+    <!-- ── TOP HEADER ────────────────────────────────── -->
+    <header class="top-header">
+      <div class="header-search">
+        <span class="icon">🔍</span>
+        <input type="text" placeholder="Search for districts, parks, or coordinates..." />
+      </div>
+      
+      <div class="header-actions">
+        <!-- Date Filters -->
+        <div class="header-filters">
+          <button class="filter-btn active">24 Hours</button>
+          <button class="filter-btn">48 Hours</button>
+          <button class="filter-btn">7 Days</button>
+        </div>
+
+        <div class="system-status" id="system-health-badge">
+          <span class="status-dot"></span>
+          <span class="status-text">Checking System...</span>
+        </div>
+
+        <div class="header-clock" id="topbar-clock"></div>
+        
+        <div class="header-icons">
+          <button class="icon-btn" id="btn-toggle-sidebar" title="Toggle Filters Sidebar">⚙️</button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ── VIEW: DASHBOARD ───────────────────────────── -->
+    <div id="view-dashboard" class="content-view active">
+      
+      <!-- Moved KPIs inside Dashboard View -->
+      <section class="kpi-container">
+        <div class="kpi-card" id="stat-total">
+          <div class="kpi-icon total">🔥</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="active-fire-count">0</div>
+            <div class="kpi-label">Active Hotspots</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon power">⚡</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="kpi-max-frp">0 <small>MW</small></div>
+            <div class="kpi-label">Peak Fire Power</div>
+          </div>
+        </div>
+        <div class="kpi-card" id="stat-parks">
+          <div class="kpi-icon parks">🌿</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="kpi-parks-affected">0</div>
+            <div class="kpi-label">Parks Affected</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon area">🏜</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="kpi-burned-area">0 <small>km²</small></div>
+            <div class="kpi-label">Burned Area (2024)</div>
+          </div>
+        </div>
+        <div class="kpi-card" id="stat-high">
+          <div class="kpi-icon high">🎯</div>
+          <div class="kpi-data">
+            <div class="kpi-value" id="kpi-high-conf">0</div>
+            <div class="kpi-label">High Confidence</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon season">📅</div>
+          <div class="kpi-data">
+            <div class="kpi-progress-wrap">
+              <div class="kpi-progress-bar" style="width: 68%;"></div>
+            </div>
+            <div class="kpi-label">Dry Season Progress (68%)</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="dashboard-grid">
+        
+        <!-- Left Column: Map & Seasonal Charts -->
+        <div class="dashboard-main">
+          
+          <!-- Small Map Area -->
+          <div class="dashboard-map-card">
+            <div class="card-header">
+              <span class="card-title">Zimbabwe Fire Map</span>
+              <div class="card-actions">
+                <button class="btn-sm" onclick="app.switchTo('map-explorer')">Expand Map</button>
+              </div>
+            </div>
+            <div id="map-dashboard" style="height: 400px; border-radius: 8px;"></div>
+          </div>
+
+          <div class="dashboard-charts">
+            <div class="chart-card">
+              <div class="card-header">Fire Trend (Weekly)</div>
+              <canvas id="chart-weekly" height="150"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="card-header">Vegetation Affected</div>
+              <canvas id="chart-confidence" height="150"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Alerts Feed -->
+        <div class="dashboard-alerts">
+          <div class="alerts-card">
+            <div class="card-header">
+              <span class="card-title">Real-time Fire Alerts</span>
+              <span class="live-blink">LIVE</span>
+            </div>
+            <div class="alerts-feed" id="alerts-feed">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── VIEW: MAP EXPLORER ────────────────────────── -->
+    <div id="view-map-explorer" class="content-view">
+      <div class="map-explorer-container">
+        <!-- Floating Filter Sidebar for Map Explorer -->
+        <aside class="map-filters" id="sidebar">
+          <div class="sidebar-section">
+            <div class="section-header">🛰 Map Controls</div>
+            <div class="layer-toggles">
+              <div class="layer-toggle on" id="toggle-fires">Active Fire Points</div>
+              <div class="layer-toggle on" id="toggle-burned">Burned Areas</div>
+              <div class="layer-toggle on" id="toggle-parks">Protected Areas</div>
+              <div class="layer-toggle" id="toggle-wards">Wards</div>
+            </div>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-header">📅 Historical View</div>
+            <select class="form-control" id="filter-historical-year">
+              <option value="none">None</option>
+            </select>
+          </div>
+        </aside>
+
+        <div id="map" style="height: 100%; width: 100%;"></div>
+        
+        <div class="scrubber" role="region" aria-label="Time controls">
+          <span class="scrubber-label">JUL 2025</span>
+          <div class="scrubber-track">
+            <input type="range" class="time-slider" id="map-time-slider" min="0" max="262" value="262" />
+          </div>
+          <span class="scrubber-label">MAR 2026</span>
+          <span class="scrubber-date" id="scrubber-date">20 Mar 2026</span>
+        </div>
+      </div>
+    </div>
+
+  <!-- ── VIEW: STATISTICS ──────────────────────────── -->
+  <div id="view-statistics" class="content-view">
+    <div class="stats-layout">
+
+      <!-- Control Bar -->
+      <div class="stats-control-bar">
+        <div class="stats-control-group">
+          <label class="ctrl-label">📅 Analysis Year</label>
+          <select class="form-control" id="stats-year-select">
+            <!-- populated by JS -->
+          </select>
+        </div>
+        <div class="stats-control-group">
+          <label class="ctrl-label">Map Mode</label>
+          <div class="map-mode-toggle">
+            <button class="mode-btn active" id="btn-mode-cluster" title="Point Clusters">
+              <span>⬤</span> Clusters
+            </button>
+            <button class="mode-btn" id="btn-mode-heatmap" title="Density Heatmap">
+              <span>🌡</span> Heatmap
+            </button>
+            <button class="mode-btn" id="btn-mode-burns" title="Burned Area Polygons">
+              <span>🔥</span> Burns
+            </button>
+          </div>
+        </div>
+        <div class="stats-status" id="stats-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Select a year to analyse</span>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="stats-kpi-row">
+        <div class="stats-kpi">
+          <div class="stats-kpi-icon">🔥</div>
+          <div>
+            <div class="stats-kpi-value" id="stats-fire-count">—</div>
+            <div class="stats-kpi-label">Fire Detections</div>
+          </div>
+        </div>
+        <div class="stats-kpi">
+          <div class="stats-kpi-icon">🛰</div>
+          <div>
+            <div class="stats-kpi-value" id="stats-burned-ha">—</div>
+            <div class="stats-kpi-label">Burned Area (ha)</div>
+          </div>
+        </div>
+        <div class="stats-kpi">
+          <div class="stats-kpi-icon">📍</div>
+          <div>
+            <div class="stats-kpi-value" id="stats-top-province">—</div>
+            <div class="stats-kpi-label">Most Affected Province</div>
+          </div>
+        </div>
+        <div class="stats-kpi">
+          <div class="stats-kpi-icon">📐</div>
+          <div>
+            <div class="stats-kpi-value" id="stats-pct-country">—</div>
+            <div class="stats-kpi-label">% of Country Burned</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual-Pane: Map + Charts -->
+      <div class="stats-dual-pane">
+
+        <!-- LEFT: Analysis Map -->
+        <div class="stats-map-pane">
+          <div class="card-header">
+            Spatial Distribution
+            <span id="stats-map-year-label" class="year-chip"></span>
+          </div>
+          <div id="map-statistics" style="height:460px; border-radius:8px;"></div>
+        </div>
+
+        <!-- RIGHT: Charts Stack -->
+        <div class="stats-charts-pane">
+          <div class="chart-card">
+            <div class="card-header">Historical Burn Trend (2001–2024)</div>
+            <canvas id="chart-historical-trend" height="160"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="card-header">Burned Area by Province</div>
+            <canvas id="chart-burned" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Province Table -->
+      <div class="chart-card" style="margin-top:1.5rem;">
+        <div class="card-header">Provincial Breakdown</div>
+        <div class="table-wrap">
+          <table class="district-table">
+            <thead>
+              <tr><th>Province</th><th>Fire Points</th><th>High Confidence</th><th>Severity</th></tr>
+            </thead>
+            <tbody id="hotspot-table-body">
+              <tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b826b;">Select a year above to load data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── VIEW: ARCHIVAL HISTORY ────────────────────── -->
+  <div id="view-history" class="content-view">
+    <div class="analysis-controls">
+      <div class="control-group">
+        <label>Historical Year</label>
+        <select class="form-control" id="history-year-select"></select>
+      </div>
+      <div class="analysis-status" id="history-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Select a year to load archival data</span>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon total">📜</div>
+        <div class="kpi-info">
+          <div class="kpi-label">Annual Hotspots</div>
+          <div class="kpi-value" id="history-total-fires">0</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon high">📍</div>
+        <div class="kpi-info">
+          <div class="kpi-label">Primary Province</div>
+          <div class="kpi-value" id="history-top-province">---</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card large" style="margin-top: 24px;">
+      <div class="card-header">Archival Fire Detections (Table)</div>
+      <div class="table-wrap">
+        <table class="district-table">
+          <thead>
+            <tr><th>Date/Time</th><th>Province</th><th>Confidence</th><th>FRP (MW)</th></tr>
+          </thead>
+          <tbody id="history-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VIEW: BURNED AREA ANALYSIS ────────────────── -->
+  <div id="view-burned-area" class="content-view">
+    <div class="analysis-controls">
+      <div class="control-group">
+        <label>Analysis Year</label>
+        <select class="form-control" id="burned-year-select"></select>
+      </div>
+      <div class="analysis-status" id="burned-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Choose a year for satellite footprint analysis</span>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon critical">🔥</div>
+        <div class="kpi-info">
+          <div class="kpi-label">Total Burned Area</div>
+          <div class="kpi-value" id="burned-total-ha">0 <small>ha</small></div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon moderate">🗺️</div>
+        <div class="kpi-info">
+          <div class="kpi-label">Burned Percentage</div>
+          <div class="kpi-value" id="burned-percentage">0%</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card large" style="margin-top: 24px;">
+      <div class="card-header">Regional Burn Distribution</div>
+      <canvas id="chart-burned-distribution" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- ── VIEW: NATIONAL PARKS MONITOR ──────────────── -->
+  <div id="view-national-parks" class="content-view">
+    <div class="analysis-controls">
+        <div class="control-group">
+            <h2 class="view-title">🌿 Protected Areas Monitor</h2>
+            <p class="view-subtitle">Live surveillance of National Parks & Safari Areas</p>
+        </div>
+        <div class="control-group">
+            <div id="parks-status-badge" class="analysis-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Scanning 12 major reserves...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="parks-summary-bar">
+        <div class="park-stat-lite">
+            <span class="label">Total Park Hotspots</span>
+            <span id="park-total-hotspots" class="value">0</span>
+        </div>
+        <div class="park-stat-lite">
+            <span class="label">Reserves at High Risk</span>
+            <span id="park-risk-count" class="value">0</span>
+        </div>
+        <div class="park-stat-lite">
+            <span class="label">Last Incursion</span>
+            <span id="park-last-detection" class="value">None</span>
+        </div>
+    </div>
+
+    <div class="parks-grid" id="parks-grid-container">
+        <!-- Populated via NationalParksModule -->
+    </div>
+  </div>
+
+  <!-- ── VIEW: ALERTS MANAGEMENT ──────────────────────── -->
+  <div id="view-alerts" class="content-view">
+    <div class="alerts-view-layout">
+
+      <!-- Header Bar -->
+      <div class="alerts-view-header">
+        <div>
+          <h2 class="view-title">🔔 Alert Rules</h2>
+          <p class="view-subtitle">Define automated fire detection alerts — get notified before it's too late.</p>
+        </div>
+        <button id="btn-new-alert" class="btn-primary-lg">
+          <span>＋</span> New Alert Rule
+        </button>
+      </div>
+
+      <!-- Summary KPIs -->
+      <div class="alerts-kpi-row">
+        <div class="alerts-kpi-card">
+          <div class="akpi-icon" style="color:#4ade80">🔔</div>
+          <div>
+            <div class="akpi-value" id="alerts-count-active">0</div>
+            <div class="akpi-label">Active Alerts</div>
+          </div>
+        </div>
+        <div class="alerts-kpi-card">
+          <div class="akpi-icon" style="color:#fbbf24">📋</div>
+          <div>
+            <div class="akpi-value" id="alerts-count-total">0</div>
+            <div class="akpi-label">Total Rules</div>
+          </div>
+        </div>
+        <div class="alerts-kpi-card">
+          <div class="akpi-icon" style="color:#60a5fa">🛰</div>
+          <div>
+            <div class="akpi-value">NASA FIRMS</div>
+            <div class="akpi-label">Data Source</div>
+          </div>
+        </div>
+        <div class="alerts-kpi-card">
+          <div class="akpi-icon" style="color:#f472b6">⚡</div>
+          <div>
+            <div class="akpi-value">Real-time</div>
+            <div class="akpi-label">Detection Mode</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts Table -->
+      <div class="chart-card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+        <div class="card-header">
+          <span class="card-title">Alert Rules</span>
+          <span style="font-size:11px;color:#6b826b;">All rules evaluated on each NASA sync</span>
+        </div>
+        <div class="table-wrap" style="flex:1;overflow-y:auto;">
+          <table class="district-table">
+            <thead>
+              <tr>
+                <th>Alert Name</th>
+                <th>Province</th>
+                <th>Channels</th>
+                <th>Trigger Rule</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-mgmt-tbody"></tbody>
+          </table>
+        </div>
+        <!-- Empty state -->
+        <div id="alerts-empty-state" class="alerts-empty-state">
+          <div class="empty-icon">🔔</div>
+          <h3>No Alert Rules Yet</h3>
+          <p>Create your first alert rule to be notified when fires are detected near critical areas.</p>
+          <button id="btn-new-alert-empty" class="btn-primary-lg" style="margin-top:16px;">＋ Create First Alert</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Alert Modal -->
+  <div id="alert-modal-overlay" class="modal-overlay">
+    <div id="alert-modal" class="modal-card">
+      <div class="modal-header">
+        <h3 id="alert-modal-title">New Alert Rule</h3>
+        <button class="modal-close-btn" onclick="AlertsModule.closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Alert Name *</label>
+            <input id="am-name" type="text" class="form-control" placeholder="e.g. Hwange Park Incursion" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Severity Level</label>
+            <select id="am-severity" class="form-control">
+              <option value="critical">🔴 Critical</option>
+              <option value="high" selected>🟠 High</option>
+              <option value="medium">🟡 Medium</option>
+              <option value="info">🔵 Info</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Province Filter</label>
+            <select id="am-province" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Protected Area</label>
+            <select id="am-park" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Min. Fire Radiative Power (MW)</label>
+            <input id="am-min-frp" type="number" class="form-control" placeholder="e.g. 100 (leave blank for any)" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Min. Confidence Level</label>
+            <select id="am-confidence" class="form-control">
+              <option value="all">Any Confidence</option>
+              <option value="high">High Only</option>
+              <option value="nominal">Nominal or above</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><input id="am-park-only" type="checkbox" style="margin-right:8px;">Only alert for fires within a Protected Area</label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notification Channels *</label>
+          <div class="channel-buttons">
+            <button type="button" class="channel-toggle-btn" data-channel="SMS">📱 SMS</button>
+            <button type="button" class="channel-toggle-btn" data-channel="Email">📧 Email</button>
+            <button type="button" class="channel-toggle-btn" data-channel="Telegram">✈️ Telegram</button>
+            <button type="button" class="channel-toggle-btn" data-channel="WhatsApp">💬 WhatsApp</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="am-cancel" class="btn-ghost">Cancel</button>
+        <button id="am-save" class="btn-primary-lg">💾 Save Alert</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VIEW: RISK ZONES ──────────────────────────────── -->
+  <div id="view-risk-zones" class="content-view">
+    <div class="risk-view-layout">
+
+      <!-- Header -->
+      <div class="analysis-controls">
+        <div class="control-group">
+          <h2 class="view-title">⚠️ Fire Risk Analysis</h2>
+          <p class="view-subtitle">Provincial risk scoring based on fire density, burned area, and FRP intensity.</p>
+        </div>
+        <div id="risk-status" class="analysis-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Loading risk data...</span>
+        </div>
+      </div>
+
+      <!-- Risk KPI Row -->
+      <div class="risk-kpi-row">
+        <div class="risk-kpi-card critical-bg">
+          <div class="risk-kpi-icon">🔴</div>
+          <div>
+            <div class="risk-kpi-value" id="risk-kpi-critical">—</div>
+            <div class="risk-kpi-label">Critical Provinces</div>
+          </div>
+        </div>
+        <div class="risk-kpi-card high-bg">
+          <div class="risk-kpi-icon">🟠</div>
+          <div>
+            <div class="risk-kpi-value" id="risk-kpi-high">—</div>
+            <div class="risk-kpi-label">High Risk Provinces</div>
+          </div>
+        </div>
+        <div class="risk-kpi-card info-bg">
+          <div class="risk-kpi-icon">📍</div>
+          <div>
+            <div class="risk-kpi-value" id="risk-kpi-provinces">—</div>
+            <div class="risk-kpi-label">Provinces Analysed</div>
+          </div>
+        </div>
+        <div class="risk-kpi-card info-bg">
+          <div class="risk-kpi-icon">📅</div>
+          <div>
+            <div class="risk-kpi-value">2024</div>
+            <div class="risk-kpi-label">Reference Year</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dual pane: Map + Cards -->
+      <div class="risk-dual-pane">
+
+        <!-- Choropleth Map -->
+        <div class="risk-map-pane">
+          <div class="card-header">
+            Risk Choropleth Map
+            <div id="risk-legend" class="risk-legend-inline"></div>
+          </div>
+          <div id="map-risk" style="height:460px;border-radius:8px;"></div>
+        </div>
+
+        <!-- Risk Cards Scroll -->
+        <div class="risk-cards-pane">
+          <div class="card-header">Provincial Risk Scores</div>
+          <div id="risk-cards-container" class="risk-cards-container">
+            <!-- Populated by RiskZonesModule -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+    </main>
+  </div><!-- /app-layout -->
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <!-- Leaflet.heat for heatmap rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="js/firms.js?v=1.7"></script>
+  <script src="js/map.js?v=1.7"></script>
+  <script src="js/charts.js?v=1.7"></script>
+  <script src="js/alerts.js?v=1.7"></script>
+  <script src="js/timeslider.js?v=1.7"></script>
+  <script src="js/filters.js?v=1.7"></script>
+  <script src="js/api_client.js?v=1.7"></script>
+  <script src="js/risk.js?v=1.7"></script>
+  <script src="js/app.js?v=1.7"></script>
+</body>
+</html>

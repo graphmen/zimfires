@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "zimfirewatch-backend"
+version = "0.1.0"
+description = "FastAPI backend for Zimbabwe Fire System"
+authors = ["Manuel Ndebele"]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+fastapi = "^0.109.0"
+uvicorn = "^0.27.0"
+sqlalchemy = "^2.0.25"
+geoalchemy2 = "^0.14.3"
+asyncpg = "^0.29.0"
+pydantic = "^2.5.3"
+pydantic-settings = "^2.1.0"
+shapely = "^2.0.2"
+pandas = "^2.2.0"
+requests = "^2.31.0"
+apscheduler = "^3.10.4"
+python-multipart = "^0.0.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

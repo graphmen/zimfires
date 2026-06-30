@@ -1,0 +1,171 @@
+-- Enable PostGIS
+CREATE EXTENSION IF NOT EXISTS postgis SCHEMA extensions;
+
+-- Table for Zimbabwe Admin Boundaries
+CREATE TABLE IF NOT EXISTS aoi_boundaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    geom GEOMETRY(MULTIPOLYGON, 4326) NOT NULL,
+    country_code TEXT DEFAULT 'ZW',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table for Fire Observations
+CREATE TABLE IF NOT EXISTS fire_observations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    geom GEOMETRY(POINT, 4326) NOT NULL,
+    observation_time TIMESTAMPTZ NOT NULL,
+    ingestion_time TIMESTAMPTZ DEFAULT NOW(),
+    sensor TEXT CHECK (sensor IN ('MODIS_TERRA','MODIS_AQUA','VIIRS_S-NPP','VIIRS_NOAA20','VIIRS_NOAA21','LANDSAT_OLI')),
+    dataset TEXT CHECK (dataset IN ('MODIS_C6.1','VIIRS_375m','LANDSAT_30m')),
+    source_type TEXT CHECK (source_type IN ('historical','real-time','ultra-real-time')),
+    firms_id TEXT UNIQUE,
+    brightness FLOAT,
+    confidence TEXT,
+    frp FLOAT,
+    acquisition_date DATE,
+    country_code TEXT DEFAULT 'ZW',
+    metadata JSONB
+);
+
+-- Ingestion Jobs tracking
+CREATE TABLE IF NOT EXISTS ingestion_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    dataset TEXT NOT NULL,
+    aoi_filter TEXT,
+    start_date TIMESTAMPTZ,
+    end_date TIMESTAMPTZ,
+    status TEXT CHECK (status IN ('queued','running','completed','failed')),
+    records_processed INT DEFAULT 0,
+    cursor_state JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_fire_observations_geom ON fire_observations USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_aoi_boundaries_geom ON aoi_boundaries USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_fire_observations_time ON fire_observations (observation_time DESC);
+CREATE INDEX IF NOT EXISTS idx_fire_observations_sensor_time ON fire_observations (sensor, observation_time);
+CREATE INDEX IF NOT EXISTS idx_fire_observations_country_time ON fire_observations (country_code, observation_time);
+CREATE INDEX IF NOT EXISTS idx_fire_observations_confidence ON fire_observations (confidence);
+-- Table for Alert Rules
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'info')),
+    province_filter TEXT,
+    park_filter TEXT,
+    min_frp FLOAT,
+    min_confidence TEXT,
+    park_only BOOLEAN DEFAULT FALSE,
+    channels TEXT[] DEFAULT '{}', -- SMS, Email, Telegram, WhatsApp
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table for Triggered Alerts (History)
+CREATE TABLE IF NOT EXISTS triggered_alerts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    rule_id UUID REFERENCES alert_rules(id) ON DELETE CASCADE,
+    fire_id UUID REFERENCES fire_observations(id),
+    triggered_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB
+);
+-- Generated PostGIS Inserts for Zimbabwe Boundaries
+BEGIN;
+
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((25.24 -17.95, 25.5 -17.8, 25.8 -17.65, 26.1 -17.55, 26.4 -17.48, 26.7 -17.42, 27 -17.38, 27.3 -17.4, 27.55 -17.5, 27.65 -17.6, 27.72 -17.8, 27.85 -18, 28 -18.2, 28.1 -18.4, 28.15 -18.65, 28.12 -18.9, 28.05 -19.1, 27.95 -19.3, 27.8 -19.55, 27.65 -19.8, 27.4 -19.95, 27.1 -20.05, 26.8 -20.1, 26.55 -20.05, 26.28 -20, 25.95 -19.85, 25.7 -19.65, 25.5 -19.45, 25.32 -19.22, 25.24 -18.95, 25.2 -18.65, 25.18 -18.35, 25.2 -18.05, 25.24 -17.95)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((25.24 -19.3, 25.4 -19.1, 25.6 -19, 25.9 -18.95, 26.2 -18.95, 26.5 -19, 26.8 -19.1, 27.1 -19.25, 27.4 -19.45, 27.6 -19.7, 27.78 -19.98, 27.9 -20.22, 27.85 -20.45, 27.8 -20.65, 27.7 -20.88, 27.55 -21.1, 27.35 -21.28, 27.1 -21.42, 26.8 -21.55, 26.5 -21.65, 26.15 -21.72, 25.8 -21.75, 25.5 -21.72, 25.22 -21.65, 25 -21.52, 24.9 -21.32, 24.85 -21.08, 24.88 -20.8, 24.95 -20.52, 25.05 -20.25, 25.14 -19.95, 25.2 -19.65, 25.24 -19.3)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((27.82 -17.62, 28.08 -17.52, 28.35 -17.45, 28.65 -17.42, 28.95 -17.42, 29.25 -17.48, 29.5 -17.58, 29.72 -17.72, 29.88 -17.9, 30 -18.1, 30.05 -18.32, 30.02 -18.55, 29.92 -18.75, 29.78 -18.92, 29.6 -19.05, 29.38 -19.12, 29.12 -19.15, 28.88 -19.12, 28.65 -19.05, 28.44 -18.92, 28.28 -18.75, 28.15 -18.55, 28.06 -18.32, 27.98 -18.08, 27.88 -17.88, 27.82 -17.62)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((27.3 -14.98, 27.62 -14.92, 27.95 -14.88, 28.28 -14.88, 28.62 -14.92, 28.92 -15, 29.18 -15.12, 29.4 -15.28, 29.58 -15.48, 29.68 -15.72, 29.72 -15.98, 29.7 -16.25, 29.6 -16.5, 29.45 -16.72, 29.25 -16.9, 29 -17.02, 28.72 -17.1, 28.45 -17.12, 28.18 -17.08, 27.95 -17, 27.72 -16.85, 27.55 -16.68, 27.4 -16.48, 27.28 -16.25, 27.2 -16, 27.15 -15.72, 27.15 -15.45, 27.2 -15.18, 27.3 -14.98)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((29.55 -15.05, 29.8 -14.98, 30.08 -14.95, 30.38 -14.95, 30.68 -14.98, 30.98 -15.05, 31.25 -15.15, 31.48 -15.3, 31.68 -15.5, 31.82 -15.72, 31.88 -15.98, 31.85 -16.25, 31.75 -16.48, 31.58 -16.68, 31.38 -16.82, 31.15 -16.9, 30.9 -16.92, 30.65 -16.88, 30.4 -16.78, 30.18 -16.62, 30 -16.42, 29.85 -16.18, 29.75 -15.92, 29.7 -15.65, 29.68 -15.38, 29.68 -15.1, 29.55 -15.05)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((31.45 -16.98, 31.7 -16.9, 31.95 -16.85, 32.22 -16.85, 32.48 -16.9, 32.72 -17, 32.9 -17.15, 33.02 -17.35, 33.05 -17.58, 32.98 -17.8, 32.85 -17.98, 32.65 -18.12, 32.42 -18.2, 32.18 -18.22, 31.95 -18.18, 31.72 -18.08, 31.52 -17.92, 31.38 -17.72, 31.28 -17.5, 31.25 -17.25, 31.3 -17.02, 31.45 -16.98)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((32.72 -17, 32.95 -16.98, 33.1 -17.08, 33.12 -17.3, 33.1 -17.55, 33.05 -17.78, 33 -18.02, 32.98 -18.28, 32.98 -18.55, 33 -18.82, 33.02 -19.08, 32.98 -19.32, 32.88 -19.55, 32.72 -19.75, 32.52 -19.9, 32.3 -19.98, 32.08 -20, 31.88 -19.95, 31.72 -19.82, 31.6 -19.65, 31.52 -19.45, 31.48 -19.22, 31.5 -18.98, 31.55 -18.75, 31.62 -18.52, 31.68 -18.28, 31.7 -18.05, 31.68 -17.82, 31.72 -17.6, 31.82 -17.4, 31.98 -17.25, 32.18 -17.12, 32.4 -17.05, 32.58 -17, 32.72 -17)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((29.72 -19.18, 30 -19.08, 30.3 -19.05, 30.62 -19.05, 30.92 -19.1, 31.2 -19.2, 31.45 -19.35, 31.62 -19.55, 31.72 -19.78, 31.75 -20.05, 31.7 -20.3, 31.58 -20.55, 31.4 -20.75, 31.18 -20.9, 30.92 -21, 30.65 -21.05, 30.38 -21.05, 30.1 -20.98, 29.85 -20.85, 29.62 -20.68, 29.42 -20.48, 29.28 -20.25, 29.18 -20, 29.12 -19.72, 29.12 -19.45, 29.18 -19.22, 29.35 -19.08, 29.55 -19.08, 29.72 -19.18)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((30.85 -17.7, 31.05 -17.65, 31.22 -17.7, 31.32 -17.82, 31.28 -17.98, 31.12 -18.05, 30.92 -18.02, 30.78 -17.9, 30.78 -17.78, 30.85 -17.7)))', 4326), 'ZW');
+
+INSERT INTO aoi_boundaries (name, geom, country_code) 
+VALUES ('Unknown AOI', ST_GeomFromText('MULTIPOLYGON (((28.38 -20, 28.52 -19.95, 28.65 -19.98, 28.72 -20.08, 28.68 -20.22, 28.52 -20.28, 28.38 -20.22, 28.3 -20.1, 28.38 -20)))', 4326), 'ZW');
+
+COMMIT;
+-- Migration: 003_burned_areas
+-- Description: Create table for historical burned area polygons
+
+CREATE TABLE IF NOT EXISTS burned_areas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    geom GEOMETRY(MULTIPOLYGON, 4326) NOT NULL,
+    year INTEGER NOT NULL,
+    area_hectares DOUBLE PRECISION,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Spatial index for fast ST_Intersects queries
+CREATE INDEX IF NOT EXISTS idx_burned_areas_geom ON burned_areas USING GIST (geom);
+
+-- B-Tree index for quick year filtering
+CREATE INDEX IF NOT EXISTS idx_burned_areas_year ON burned_areas USING BTREE (year);
+
+-- Enable RLS
+ALTER TABLE burned_areas ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous read access
+CREATE POLICY "Allow public read access to burned_areas"
+    ON burned_areas FOR SELECT
+    USING (true);
+-- Enhance triggered_alerts table with explicit columns for better reporting
+ALTER TABLE triggered_alerts 
+DROP CONSTRAINT IF EXISTS triggered_alerts_fire_id_fkey,
+ALTER COLUMN fire_id TYPE TEXT,
+ADD COLUMN IF NOT EXISTS location_name TEXT,
+ADD COLUMN IF NOT EXISTS severity TEXT,
+ADD COLUMN IF NOT EXISTS frp FLOAT,
+ADD COLUMN IF NOT EXISTS confidence TEXT,
+ADD COLUMN IF NOT EXISTS detected_at TIMESTAMPTZ;
+
+-- Index for detected_at
+CREATE INDEX IF NOT EXISTS idx_triggered_alerts_detected_at ON triggered_alerts (detected_at DESC);
+
+-- Migration: 006_thermal_alerts.sql
+-- Description: Adds Heatwave and Urban Heat Island (UHI) monitoring support to alert rules.
+
+-- 1. Create Alert Type Enum
+DO $$ BEGIN
+    CREATE TYPE alert_category AS ENUM ('FIRE', 'UHI', 'HEAT_RISK');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- 2. Update alert_rules table
+ALTER TABLE alert_rules 
+ADD COLUMN IF NOT EXISTS alert_type alert_category DEFAULT 'FIRE',
+ADD COLUMN IF NOT EXISTS thermal_threshold FLOAT, -- Max temp threshold in Celsius
+ADD COLUMN IF NOT EXISTS district_id TEXT; -- Target district for regional alerts
+
+-- 3. Update triggered_alerts table
+ALTER TABLE triggered_alerts
+ADD COLUMN IF NOT EXISTS alert_value FLOAT; -- The actual value that triggered the alert (e.g. 42.5 C)
+
+-- 4. Insert a default UHI rule for Harare as a template
+INSERT INTO alert_rules (name, severity, alert_type, thermal_threshold, district_id, is_active)
+VALUES ('Harare Urban Heat Surveillance', 'high', 'UHI', 38.0, 'Harare', true)
+ON CONFLICT DO NOTHING;
