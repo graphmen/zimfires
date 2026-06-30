@@ -25,7 +25,7 @@ COPY pyproject.toml poetry.lock* /code/
 
 # Install dependencies without virtualenv since we are in a container
 RUN poetry config virtualenvs.create false \
-    && poetry install --without dev --no-interaction --no-ansi
+    && poetry install --no-interaction --no-ansi
 
 # Copy project files
 COPY ./app /code/app
