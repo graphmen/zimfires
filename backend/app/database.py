@@ -9,7 +9,12 @@ DATABASE_URL = os.getenv(
 )
 
 # Async engine for efficient I/O, PgBouncer compatibility requires statement_cache_size=0
-engine = create_async_engine(DATABASE_URL, echo=False, connect_args={"statement_cache_size": 0})
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False, 
+    connect_args={"statement_cache_size": 0},
+    prepared_statement_cache_size=0
+)
 
 # Session factory
 AsyncSessionLocal = async_sessionmaker(

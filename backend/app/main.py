@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from geoalchemy2.functions import ST_Intersects, ST_SetSRID, ST_MakePoint, ST_AsGeoJSON
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 import json
 
 from .database import get_db, engine, Base, AsyncSessionLocal

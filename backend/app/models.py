@@ -78,6 +78,6 @@ class TriggeredAlert(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     rule_id = Column(UUID(as_uuid=True), nullable=False)
-    observation_id = Column(UUID(as_uuid=True), nullable=False)
+    observation_id = Column("fire_id", String, nullable=False)
     triggered_at = Column(DateTime(timezone=True), server_default=func.now())
-    details = Column(JSONB) # To store context like "Fire detected in Hwange"
+    details = Column("metadata", JSONB) # Maps to metadata column in Supabase
