@@ -68,7 +68,7 @@ async def evaluate_alerts(db: AsyncSession, lookback_minutes: int = 60):
                 # (To prevent duplicate alerts if ingestion overlap happens)
                 check_query = select(TriggeredAlert).where(
                     TriggeredAlert.rule_id == rule.id,
-                    TriggeredAlert.observation_id == obs.id
+                    TriggeredAlert.observation_id == str(obs.id)
                 )
                 check_result = await db.execute(check_query)
                 if check_result.scalar():
@@ -77,7 +77,7 @@ async def evaluate_alerts(db: AsyncSession, lookback_minutes: int = 60):
                 # Trigger Alert
                 alert = TriggeredAlert(
                     rule_id=rule.id,
-                    observation_id=obs.id,
+                    observation_id=str(obs.id),
                     details={
                         "rule_name": rule.name,
                         "severity": rule.severity,
