@@ -1,6 +1,8 @@
 import os
+import uuid
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 
 # Supabase PostgreSQL URL
 DATABASE_URL = os.getenv(
@@ -12,9 +14,10 @@ DATABASE_URL = os.getenv(
 engine = create_async_engine(
     DATABASE_URL, 
     echo=False, 
+    poolclass=NullPool,
     connect_args={
         "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4().hex}__",
     }
 )
 
