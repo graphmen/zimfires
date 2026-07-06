@@ -85,6 +85,74 @@ export function FireMap({
     if (!map.current || !map.current.isStyleLoaded()) return
     const m = map.current
 
+    // Helper to enforce visual rendering hierarchy
+    const boundaryMaskLayerId = 'zim-boundary-mask-layer'
+    const maskLayerId = 'zim-mask-layer'
+    const reorderMapLayers = () => {
+      const order = [
+        'basemap-layer',
+        'nasa-burned-layer', 
+        'nasa-ndvi-layer', 
+        'nasa-fires-layer',
+        'gee-burned-layer',
+        'gee-vegetation-layer',
+        'gee-urbanHeat-layer',
+        'gee-heatVulnerability-layer',
+        'gee-landcover-layer',
+        boundaryMaskLayerId, // Draw boundary mask exactly on top of all raster layers
+        'local-parks-layer',
+        'local-histBurned-layer',
+        'local-provinces-layer',
+        'local-districts-layer',
+        'local-wards-layer',
+        maskLayerId,
+        'local-histFires-layer',
+        hotspotsHeatmapId,
+        hotspotsGlowId,
+        hotspotsLayerId,
+        'risk-zones-layer-outer',
+        'risk-zones-layer',
+        'risk-zones-labels'
+      ]
+      
+      const layers = m.getStyle().layers || []
+      const currentOrder = layers.map(l => l.id)
+      
+      let changed = true
+      let passes = 0
+      const maxPasses = 100 // Prevent any potential infinite loop
+      
+      while (changed && passes < maxPasses) {
+        changed = false
+        passes++
+        
+        for (let i = 0; i < order.length - 1; i++) {
+          const layerId = order[i]
+          const nextLayerId = order[i + 1]
+          
+          if (m.getLayer(layerId) && m.getLayer(nextLayerId)) {
+            const idx = currentOrder.indexOf(layerId)
+            const nextIdx = currentOrder.indexOf(nextLayerId)
+            
+            if (idx !== -1 && nextIdx !== -1 && idx > nextIdx) {
+              try {
+                m.moveLayer(layerId, nextLayerId)
+                
+                // Update our local tracking array
+                currentOrder.splice(idx, 1)
+                const newInsertIdx = currentOrder.indexOf(nextLayerId)
+                currentOrder.splice(newInsertIdx, 0, layerId)
+                
+                changed = true
+              } catch (e) {
+                console.error("Error moving layer:", e)
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 1. Sync Basemap
     const selectedBase = basemaps[style] || basemaps.osm
     if (!m.getSource('basemap-source')) {
@@ -131,7 +199,9 @@ export function FireMap({
             tileSize: 256,
             bounds: [-180, -85, 180, 85]
           })
-          const beforeId = m.getLayer('local-provinces-layer') ? 'local-provinces-layer' : undefined;
+          const beforeId = m.getLayer(boundaryMaskLayerId) 
+            ? boundaryMaskLayerId 
+            : (m.getLayer('local-provinces-layer') ? 'local-provinces-layer' : undefined);
           const opacity = layerOpacities[key] ?? 0.8
           m.addLayer({ id: layerId, type: 'raster', source: sourceId, paint: { 'raster-opacity': opacity } }, beforeId)
         } else {
@@ -176,7 +246,9 @@ export function FireMap({
                   tileSize: 256,
                   bounds: [-180, -85, 180, 85]
                 });
-                const beforeId = m.getLayer('local-provinces-layer') ? 'local-provinces-layer' : undefined;
+                const beforeId = m.getLayer(boundaryMaskLayerId) 
+                  ? boundaryMaskLayerId 
+                  : (m.getLayer('local-provinces-layer') ? 'local-provinces-layer' : undefined);
                 const opacity = layerOpacities[id] ?? 0.8
                 m.addLayer({ 
                   id: layerId, 
@@ -184,6 +256,9 @@ export function FireMap({
                   source: sourceId, 
                   paint: { 'raster-opacity': opacity } 
                 }, beforeId);
+
+                // Re-evaluate Z-indexing stack once async layer is loaded
+                reorderMapLayers();
               }
             })
             .catch(() => {});
@@ -360,7 +435,19 @@ export function FireMap({
       })
 
       m.on('click', hotspotsLayerId, (e) => {
-        if (e.features && e.features[0]) onIncidentClick?.(e.features[0].properties)
+        if (e.features && e.features[0]) {
+          const props = e.features[0].properties || {};
+          const geom = e.features[0].geometry;
+          let coords = e.lngLat;
+          if (geom && geom.type === 'Point') {
+            coords = { lng: geom.coordinates[0], lat: geom.coordinates[1] } as any;
+          }
+          onIncidentClick?.({
+            ...props,
+            lat: coords.lat,
+            lng: coords.lng
+          });
+        }
       })
       m.on('mouseenter', hotspotsLayerId, () => m.getCanvas().style.cursor = 'pointer')
       m.on('mouseleave', hotspotsLayerId, () => m.getCanvas().style.cursor = '')
@@ -465,7 +552,6 @@ export function FireMap({
 
     // 5. Zimbabwe Outer Boundary Mask (Hides everything outside Zimbabwe)
     const boundaryMaskSourceId = 'zim-boundary-mask-source'
-    const boundaryMaskLayerId = 'zim-boundary-mask-layer'
     const maskColors: Record<string, string> = {
       midnight: '#0c0c0d',
       osm: '#f4f3f0',
@@ -494,7 +580,6 @@ export function FireMap({
 
     // 6. Zimbabwe Mask / Administrative Bounds
     const maskSourceId = 'zim-mask-source'
-    const maskLayerId = 'zim-mask-layer'
     if (activeLayers.provinces) {
       if (!m.getSource(maskSourceId)) {
         m.addSource(maskSourceId, { type: 'geojson', data: '/data/provinces.json' })
@@ -517,44 +602,7 @@ export function FireMap({
     }
 
     // 7. Layer Z-Index Ordering
-    const order = [
-      'basemap-layer',
-      'nasa-burned-layer', 
-      'nasa-ndvi-layer', 
-      'nasa-fires-layer',
-      'gee-burned-layer',
-      'gee-vegetation-layer',
-      'gee-urbanHeat-layer',
-      'gee-heatVulnerability-layer',
-      'gee-landcover-layer',
-      boundaryMaskLayerId, // Draw boundary mask exactly on top of all raster layers
-      'local-parks-layer',
-      'local-histBurned-layer',
-      'local-provinces-layer',
-      'local-districts-layer',
-      'local-wards-layer',
-      maskLayerId,
-      'local-histFires-layer',
-      hotspotsHeatmapId,
-      hotspotsGlowId,
-      hotspotsLayerId,
-      'risk-zones-layer-outer',
-      'risk-zones-layer',
-      'risk-zones-labels'
-    ]
-    
-    order.forEach((id, idx) => {
-      if (m.getLayer(id) && idx > 0) {
-        for (let j = idx + 1; j < order.length; j++) {
-          if (m.getLayer(order[j])) {
-            try {
-              m.moveLayer(id, order[j])
-              break
-            } catch (e) {}
-          }
-        }
-      }
-    })
+    reorderMapLayers();
   }, [activeLayers, effectiveTime, style, historicalYear, hotspots, riskZones, mappingMode, onIncidentClick, layerOpacities])
 
   React.useEffect(() => {
@@ -597,7 +645,9 @@ export function FireMap({
     })
 
     m.on('styledata', () => {
-      if (m.isStyleLoaded()) syncLayers()
+      if (m.isStyleLoaded() && !m.getSource('zim-boundary-mask-source')) {
+        syncLayers()
+      }
     })
 
     m.on('click', (e) => {

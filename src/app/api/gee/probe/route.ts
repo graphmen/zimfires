@@ -43,8 +43,15 @@ const LANDCOVER_CLASSES: Record<number, string> = {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const lat = parseFloat(searchParams.get('lat') || '');
-  const lng = parseFloat(searchParams.get('lng') || '');
+  let lat = parseFloat(searchParams.get('lat') || '');
+  let lng = parseFloat(searchParams.get('lng') || '');
+
+  if (isNaN(lat)) {
+    lat = parseFloat(searchParams.get('latitude') || '');
+  }
+  if (isNaN(lng)) {
+    lng = parseFloat(searchParams.get('longitude') || '');
+  }
 
   if (isNaN(lat) || isNaN(lng)) {
     return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });

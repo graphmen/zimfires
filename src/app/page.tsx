@@ -483,17 +483,24 @@ export default function MapExplorerPage() {
             setSelectedIncident(info);
             // Fetch landcover for the clicked point
             if (info) {
-              setIsProbingLandcover(true);
-              fetch(`/api/gee/probe?lat=${info.lat}&lng=${info.lng}`)
-                .then(res => res.json())
-                .then(data => {
-                  setSelectedLandcover(data.landcover || 'Unclassified');
-                  setIsProbingLandcover(false);
-                })
-                .catch(() => {
-                  setSelectedLandcover('Data Unavailable');
-                  setIsProbingLandcover(false);
-                });
+              const latVal = info.lat !== undefined ? info.lat : (info.latitude !== undefined ? parseFloat(info.latitude) : null);
+              const lngVal = info.lng !== undefined ? info.lng : (info.longitude !== undefined ? parseFloat(info.longitude) : null);
+              
+              if (latVal !== null && lngVal !== null && !isNaN(latVal) && !isNaN(lngVal)) {
+                setIsProbingLandcover(true);
+                fetch(`/api/gee/probe?lat=${latVal}&lng=${lngVal}`)
+                  .then(res => res.json())
+                  .then(data => {
+                    setSelectedLandcover(data.landcover || 'Unclassified');
+                    setIsProbingLandcover(false);
+                  })
+                  .catch(() => {
+                    setSelectedLandcover('Data Unavailable');
+                    setIsProbingLandcover(false);
+                  });
+              } else {
+                setSelectedLandcover('Unclassified');
+              }
             }
           }}
           hotspots={filteredHotspots}
