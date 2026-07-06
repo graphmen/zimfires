@@ -463,7 +463,36 @@ export function FireMap({
       (m.getSource(riskSourceId) as maplibregl.GeoJSONSource).setData(riskData)
     }
 
-    // 5. Zimbabwe Mask / Administrative Bounds
+    // 5. Zimbabwe Outer Boundary Mask (Hides everything outside Zimbabwe)
+    const boundaryMaskSourceId = 'zim-boundary-mask-source'
+    const boundaryMaskLayerId = 'zim-boundary-mask-layer'
+    const maskColors: Record<string, string> = {
+      midnight: '#0c0c0d',
+      osm: '#f4f3f0',
+      satellite: '#05070a',
+      hybrid: '#05070a'
+    }
+    const maskColor = maskColors[style] || maskColors.osm
+
+    if (!m.getSource(boundaryMaskSourceId)) {
+      m.addSource(boundaryMaskSourceId, { 
+        type: 'geojson', 
+        data: '/data/zim-mask.json' 
+      })
+      m.addLayer({
+        id: boundaryMaskLayerId,
+        type: 'fill',
+        source: boundaryMaskSourceId,
+        paint: {
+          'fill-color': maskColor,
+          'fill-opacity': 1.0
+        }
+      })
+    } else {
+      m.setPaintProperty(boundaryMaskLayerId, 'fill-color', maskColor)
+    }
+
+    // 6. Zimbabwe Mask / Administrative Bounds
     const maskSourceId = 'zim-mask-source'
     const maskLayerId = 'zim-mask-layer'
     if (activeLayers.provinces) {
@@ -487,13 +516,25 @@ export function FireMap({
       setVisibility(maskLayerId, false);
     }
 
-    // 6. Layer Z-Index Ordering
+    // 7. Layer Z-Index Ordering
     const order = [
       'basemap-layer',
       'nasa-burned-layer', 
       'nasa-ndvi-layer', 
-      'nasa-fires-layer', 
+      'nasa-fires-layer',
+      'gee-burned-layer',
+      'gee-vegetation-layer',
+      'gee-urbanHeat-layer',
+      'gee-heatVulnerability-layer',
+      'gee-landcover-layer',
+      boundaryMaskLayerId, // Draw boundary mask exactly on top of all raster layers
+      'local-parks-layer',
+      'local-histBurned-layer',
+      'local-provinces-layer',
+      'local-districts-layer',
+      'local-wards-layer',
       maskLayerId,
+      'local-histFires-layer',
       hotspotsHeatmapId,
       hotspotsGlowId,
       hotspotsLayerId,
