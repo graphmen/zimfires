@@ -70,13 +70,14 @@ export async function GET(request: Request) {
         palette: ['#0000ff', '#00ffff', '#ffff00', '#ff0000', '#800080']
       };
     } else if (layerType === 'burned') {
-      console.log('Generating 2026 Burned Area Layer (MODIS MCD64A1)...');
+      console.log('Generating Burned Area Layer (MODIS MCD64A1)...');
       const zim = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017")
         .filter(ee.Filter.eq('country_na', 'Zimbabwe'));
       
+      // Use 2024-2026 range to guarantee collection is not empty (since MCD64A1 has multi-month delay)
       const modis = ee.ImageCollection("MODIS/061/MCD64A1")
         .filterBounds(zim)
-        .filterDate('2026-01-01', '2026-12-31')
+        .filterDate('2024-01-01', '2026-12-31')
         .select('BurnDate');
 
       // Identify burned pixels (BurnDate > 0)
@@ -128,10 +129,12 @@ export async function GET(request: Request) {
       };
     } else {
       console.log('Generating Heat Vulnerability Layer...');
-      const zim = ee.FeatureCollection("FAO/GAUL/2015/level0")
-        .filter(ee.Filter.eq('ADM0_NAME', 'Zimbabwe'));
-      const start = '2026-04-01';
-      const end = '2026-04-08';
+      const zim = ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017")
+        .filter(ee.Filter.eq('country_na', 'Zimbabwe'));
+      
+      // Use a guaranteed past summer range (October 2025) because ERA5 has availability delay
+      const start = '2025-10-01';
+      const end = '2025-10-08';
 
       const collection = ee.ImageCollection("ECMWF/ERA5/HOURLY")
         .filterBounds(zim)
@@ -175,7 +178,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ url: mapId.urlFormat });
 
   } catch (error: any) {
-    console.error('GEE API ROUTE ERROR:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.warn(`GEE API route failed, activating high-availability WMS/WMTS fallback layer for [${layerType}]. Error:`, error.message);
+    
+    let fallbackUrl = '';
+    if (layerType === 'uhi') {
+      // MODIS Daytime Land Surface Temp WMS layer
+      fallbackUrl = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=MODIS_Terra_L3_Land_Surface_Temp_Daily_Day&TRANSPARENT=TRUE&FORMAT=image/png&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}';
+    } else if (layerType === 'burned') {
+      // VIIRS SNPP False Color Corrected Reflectance (Bands M11-I2-I1) showing burn scars
+      fallbackUrl = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=VIIRS_SNPP_CorrectedReflectance_BandsM11I2I1&TRANSPARENT=TRUE&FORMAT=image/png&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}';
+    } else if (layerType === 'vegetation') {
+      // MODIS NDVI Monthly WMS layer
+      fallbackUrl = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=MODIS_Terra_L3_NDVI_Monthly&TRANSPARENT=TRUE&FORMAT=image/png&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}';
+    } else if (layerType === 'landcover') {
+      // ESA WorldCover 20m from Digital Earth Africa public WMS
+      fallbackUrl = 'https://ows.digitalearth.africa/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=esa_worldcover_2020&TRANSPARENT=TRUE&FORMAT=image/png&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}';
+    } else {
+      // Heat vulnerability fallback (MODIS Land Surface Temp Daily)
+      fallbackUrl = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=MODIS_Terra_L3_Land_Surface_Temp_Daily_Day&TRANSPARENT=TRUE&FORMAT=image/png&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}';
+    }
+
+    return NextResponse.json({ 
+      url: fallbackUrl,
+      fallback: true,
+      error: error.message
+    });
   }
 }
