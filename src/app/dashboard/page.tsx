@@ -330,7 +330,7 @@ export default function DashboardPage() {
                           <tbody className="divide-y divide-zinc-50">
                             {recentObs.map((obs, i) => (
                               <tr key={i} className="hover:bg-zinc-50 transition-colors">
-                                <td className="p-6 text-[11px] font-black text-zinc-900">{obs.record_id}</td>
+                                <td className="p-6 text-[11px] font-black text-zinc-900 font-mono">{obs.id ? obs.id.slice(0, 8).toUpperCase() : ''}</td>
                                 <td className="p-6 text-[10px] font-bold text-zinc-400">{new Date(obs.observation_time).toLocaleDateString()}</td>
                                 <td className="p-6 text-[11px] font-black text-zinc-900 uppercase">{obs.province}</td>
                                 <td className="p-6 text-[10px] font-bold text-zinc-400 uppercase">{obs.district}</td>

@@ -43,8 +43,8 @@ export async function getObservations(filters: ObservationFilter) {
   }
 
   if (filters.search) {
-    // Search in record_id or comments/source if available
-    query = query.or(`record_id.ilike.%${filters.search}%,source_type.ilike.%${filters.search}%`)
+    // Search in firms_id or source_type if available
+    query = query.or(`firms_id.ilike.%${filters.search}%,source_type.ilike.%${filters.search}%`)
   }
 
   const { data, error } = await query

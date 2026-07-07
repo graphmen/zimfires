@@ -110,7 +110,7 @@ export default function ArchiveSearchPage() {
       if (obsResult.error) throw new Error(obsResult.error)
       
       setRealIncidents(obsResult.data.map(d => ({
-        id: d.record_id,
+        id: d.id,
         date: new Date(d.observation_time).toLocaleDateString(),
         province: d.province,
         district: d.district,
@@ -384,7 +384,7 @@ export default function ArchiveSearchPage() {
                   <TableBody>
                     {realIncidents.map((inc) => (
                       <TableRow key={inc.id} onClick={() => handleIncidentSelect(inc.id)} className="group hover:bg-primary/5 transition-colors border-b-muted/30 cursor-pointer">
-                        <TableCell className="font-black text-[11px] font-mono pl-6 text-primary/80">{inc.id}</TableCell>
+                        <TableCell className="font-black text-[11px] font-mono pl-6 text-primary/80">{inc.id ? inc.id.slice(0, 8).toUpperCase() : ''}</TableCell>
                         <TableCell className="text-[10px] font-bold text-muted-foreground">{inc.date}</TableCell>
                         <TableCell className="text-[10px] font-black text-zinc-700 uppercase tracking-tight">{inc.province}</TableCell>
                         <TableCell className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">{inc.district}</TableCell>

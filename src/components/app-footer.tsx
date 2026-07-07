@@ -120,10 +120,7 @@ export function AppFooter() {
         <p className="text-[11px] font-bold text-emerald-400/60">
           © {currentYear} ZINGSA. ALL RIGHTS RESERVED.
         </p>
-        <p className="text-[11px] text-emerald-400/60 text-center font-medium">
-          Official Monitoring Stream. Emergency Response:
-          <span className="text-orange-400 font-black ml-1 uppercase tracking-widest">CPU Hotline 993</span>
-        </p>
+
         <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded text-[10px] font-black text-emerald-400/60 uppercase tracking-widest">
            SYSTEM_V2.0.0
         </div>
